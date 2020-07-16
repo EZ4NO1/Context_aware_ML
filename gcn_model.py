@@ -3,7 +3,7 @@ from read_h5 import get_train_cates
 import pickle
 import os
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 ORIGIN_EMOTION=['Affection','Anger','Annoyance','Anticipation','Aversion','Confidence'
 ,'Disapproval','Disconnection','Disquietment','Doubt/Confusion','Embarrassment','Engagement'
@@ -82,7 +82,7 @@ def get_adj_matrix(ratio_wvec=0.5):
     return A_hat
 def draw_corelation_heat_map(matrix,ticks):
     fig, ax = plt.subplots()
-    im = ax.imshow(matrix)
+    im = ax.imshow(matrix,cmap='gray')
     ax.set_xticks(np.arange(len(ticks)))
     ax.set_yticks(np.arange(len(ticks)))
     # ... and label them with the respective list entries
@@ -94,17 +94,16 @@ def draw_corelation_heat_map(matrix,ticks):
             rotation_mode="anchor")
 
     # Loop over data dimensions and create text annotations.
-    for i in range(len(ticks)):
-        for j in range(len(ticks)):
-            text = ax.text(i,j,matrix[i][j],
-                        ha="center", va="center", color="w")
+    # for i in range(len(ticks)):
+    #     for j in range(len(ticks)):
+    #         text = ax.text(i,j,matrix[i][j],
+    #                     ha="center", va="center", color="w")
     ax.set_title("Multi-Label Corelation")
-    print(ax.get_ylim())
-    ax.set_ylim(ax.get_ylim()[::-1])        # invert the axis   
-    ax.yaxis.tick_left()    
+    # # ax.set_ylim(ax.get_ylim()[::-1])        # invert the axis   
+    # ax.yaxis.tick_left()    
     fig.tight_layout()
-    plt.savefig(CORELATION_HEAT_MAP)
+    plt.savefig(CORELATION_HEAT_MAP,quality=100,dpi=fig.dpi)
 if __name__=='__main__':
     A_hat=get_adj_matrix()
     #print(A_hat)
-    draw_corelation_heat_map(A_hat,ORIGIN_EMOTION)
+    draw_corelation_heat_map(A_hat[:10,:10],ORIGIN_EMOTION[:10])
