@@ -3,8 +3,11 @@ from read_h5 import get_train_cates
 import pickle
 import os
 import matplotlib
-matplotlib.use('pdf')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import tensorflow as tf 
+import tensorflow.keras.layers as layers 
+
 ORIGIN_EMOTION=['Affection','Anger','Annoyance','Anticipation','Aversion','Confidence'
 ,'Disapproval','Disconnection','Disquietment','Doubt/Confusion','Embarrassment','Engagement'
 ,'Esteem','Excitement','Fatigue','Fear','Happiness','Pain','Peace','Pleasure','Sadness','Sensitivity'
@@ -38,7 +41,7 @@ def word_vec_corelation_m(vecs):
             out[i][j]=np.linalg.norm(vecs[i]-vecs[j],ord=2)
     out=1-out/out.max()
     return out
-def get_adj_matrix(ratio_wvec=0.5):
+def get_wordvec_m():
     emo_strs=ALL_EMOTION
     emo_strs=[i.lower() for i in emo_strs]
     if not os.path.exists(PRE_EMBEDDING_FILE):
@@ -48,7 +51,7 @@ def get_adj_matrix(ratio_wvec=0.5):
             while line:
                 line_sep=line.split(' ')
                 if line_sep[0] in emo_strs:
-                    word2vec_dict[line_sep[0]]=np.asarray(line_sep[1:]).astype(np.float) 
+                    word2vec_dict[line_sep[0]]=np.asarray(line_sep[1:]).astype(np.float32) 
                 line = f.readline()
             word2vec_dict['disquietment']=word2vec_dict['disquiet']
             del word2vec_dict['disquiet']
@@ -61,6 +64,9 @@ def get_adj_matrix(ratio_wvec=0.5):
         with open(EMO_EMBEDDING_FILE,'rb') as f_emo:
             word2vec_dict=pickle.load(f_emo)
     wordvec_m=np.stack([word2vec_dict[emo.lower()]  for emo in ORIGIN_EMOTION])
+    return wordvec_m
+def get_adj_matrix(ratio_wvec=0.5,diag_ratio=0.5):
+    wordvec_m=get_wordvec_m()
     A_word=word_vec_corelation_m(wordvec_m)
 
     if not os.path.exists(COND_PROB_FILE):
@@ -78,8 +84,10 @@ def get_adj_matrix(ratio_wvec=0.5):
         prob_m=np.load(COND_PROB_FILE)
     A_prob=prob_m
     A=ratio_wvec*A_word+(1-ratio_wvec)*A_prob
+    for i in range(A.shape[0]):
+        A[i][i]=A[i][i]*diag_ratio
     A_hat=sym_uniform(A)
-    return A_hat
+    return A_hat.astype(np.float32)
 def draw_corelation_heat_map(matrix,ticks):
     fig, ax = plt.subplots()
     im = ax.imshow(matrix,cmap='gray')
@@ -103,7 +111,41 @@ def draw_corelation_heat_map(matrix,ticks):
     # ax.yaxis.tick_left()    
     fig.tight_layout()
     plt.savefig(CORELATION_HEAT_MAP,quality=100,dpi=fig.dpi)
+
+
+class GCN_Layer(layers.Layer):
+    def __init__(self, output_dim,Adj,activation='relu',**kwargs):
+        self.output_dim = output_dim
+        self.Adj=tf.constant(Adj)
+        self.activation=layers.Activation(activation)
+        super().__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.kernel = self.add_weight(name='kernel',
+                                  shape=(input_shape[-1],self.output_dim),
+                                  initializer='uniform',
+                                  trainable=True,
+                                  dtype='float32')
+        super().build(input_shape)
+    def call(self, inputs):
+        Adj_T=tf.transpose(self.Adj)
+        input_T=tf.transpose(inputs,perm=[0,2,1])
+        M_T=tf.reshape(tf.reshape(input_T, [-1, input_T.shape[-1]]) @Adj_T, [-1, input_T.shape[-2], Adj_T.shape[-1]])
+        M=tf.transpose(M_T,perm=[0,2,1])
+        OUT=tf.reshape(tf.reshape(M,[-1,M.shape[-1]])@self.kernel,[-1,M.shape[-2],self.kernel.shape[-1]])
+        return  self.activation(OUT)
+
+def tow_layers_GNN_model(Adj,node_feature_dim=2048):
+    wordvec_s=get_wordvec_m().shape
+    input_v=layers.Input(shape=wordvec_s, name="origin_word_vector",dtype='float32')
+    M1=GCN_Layer(wordvec_s[-1],Adj)(input_v)
+    M2=GCN_Layer(node_feature_dim,Adj,'sigmoid')(M1)
+    model=tf.keras.Model(inputs=input_v,outputs=M2)
+    return model
 if __name__=='__main__':
     A_hat=get_adj_matrix()
     #print(A_hat)
-    draw_corelation_heat_map(A_hat[:10,:10],ORIGIN_EMOTION[:10])
+    # draw_corelation_heat_map(A_hat[:10,:10],ORIGIN_EMOTION[:10])
+    draw_corelation_heat_map(A_hat,ORIGIN_EMOTION)
+    model=tow_layers_GNN_model(A_hat)
+    model.summary()
