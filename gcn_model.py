@@ -117,7 +117,7 @@ class GCN_Layer(layers.Layer):
     def __init__(self, output_dim,Adj,activation='relu',**kwargs):
         self.output_dim = output_dim
         self.Adj=tf.constant(Adj)
-        self.activation=layers.Activation(activation)
+        self.activation=activation
         super().__init__(**kwargs)
 
     def build(self, input_shape):
@@ -133,11 +133,18 @@ class GCN_Layer(layers.Layer):
         M_T=tf.reshape(tf.reshape(input_T, [-1, input_T.shape[-1]]) @Adj_T, [-1, input_T.shape[-2], Adj_T.shape[-1]])
         M=tf.transpose(M_T,perm=[0,2,1])
         OUT=tf.reshape(tf.reshape(M,[-1,M.shape[-1]])@self.kernel,[-1,M.shape[-2],self.kernel.shape[-1]])
-        return  self.activation(OUT)
-
+        return  layers.Activation(self.activation)(OUT)
+    def get_config(self):
+      config = super().get_config().copy()
+      config.update({
+          'output_dim': self.output_dim,
+          'Adj':self.Adj.numpy(),
+          'activation':self.activation
+      })
+      return config
 def tow_layers_GNN_model(Adj,node_feature_dim=2048):
     wordvec_s=get_wordvec_m().shape
-    input_v=layers.Input(shape=wordvec_s, name="origin_word_vector",dtype='float32')
+    input_v=layers.Input(shape=wordvec_s, name="word_vector",dtype='float32')
     M1=GCN_Layer(wordvec_s[-1],Adj)(input_v)
     M2=GCN_Layer(node_feature_dim,Adj,'sigmoid')(M1)
     model=tf.keras.Model(inputs=input_v,outputs=M2)

@@ -21,7 +21,12 @@ class MatMul(layers.Layer):
     IT = tf.transpose(inputs,perm=[0,2,1])
     NTMT = tf.reshape(tf.reshape(IT, [-1, IT.shape[-1]]) @ KT, [-1, IT.shape[-2], KT.shape[-1]])
     return  tf.transpose(NTMT,perm=[0,2,1])
-
+  def get_config(self):
+      config = super().get_config().copy()
+      config.update({
+          'output_dim': self.output_dim,
+      })
+      return config
 @tf.function
 def calculate_distance(boundingbox,n_rows=7,n_cols=7,h=224,w=224,dis_type='manhattan'):
   x1,y1,x2,y2=boundingbox[0],boundingbox[1],boundingbox[2],boundingbox[3]
@@ -59,9 +64,10 @@ def attention_fusion(alpha=0.5,n_rows=7,n_cols=7,v_size=2048):
     env_features=layers.Reshape((n_rows*n_cols,v_size),name='flattern2')(env_features_input)
     person_features_input=tf.keras.Input(shape=(v_size), name="person_features")
     person_product=layers.Dense(n_rows*n_cols)(person_features_input)
-    person_product=layers.Reshape((n_rows*n_cols,n_rows*n_cols),name='expand')(person_product)
+    person_product=layers.Reshape((1,n_rows*n_cols))(person_product)
+    person_product=tf.repeat(person_product,[n_rows*n_cols],axis=-2,name='expand')
     person_product=transpose_layer(person_product)
-    bbox_input=tf.keras.Input(shape=(4), name="bbox")
+    bbox_input=tf.keras.Input(shape=(4), name="body_bboxs")
     d=layers.Lambda(lambda bb:tf.map_fn(calculate_distance,bb))(bbox_input)
     d=tf.expand_dims(d,-1)
     I_d=layers.Concatenate(axis=-1)([env_features,d])
