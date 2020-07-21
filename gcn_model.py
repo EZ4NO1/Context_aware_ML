@@ -128,7 +128,7 @@ class GCN_Layer(layers.Layer):
                                   dtype='float32')
         super().build(input_shape)
     def call(self, inputs):
-        Adj_T=tf.transpose(self.Adj)
+        Adj_T=self.Adj   #A_T*H
         input_T=tf.transpose(inputs,perm=[0,2,1])
         M_T=tf.reshape(tf.reshape(input_T, [-1, input_T.shape[-1]]) @Adj_T, [-1, input_T.shape[-2], Adj_T.shape[-1]])
         M=tf.transpose(M_T,perm=[0,2,1])
