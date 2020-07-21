@@ -7,9 +7,11 @@ def whole_model():
     wordvec_m=get_wordvec_m()
     attention_fusion_model=attention_fusion()
     fusion_output=attention_fusion_model.outputs[0]
-    gcn_model=tow_layers_GNN_model(get_adj_matrix(0.5,0.7))
+    fusion_output=tf.expand_dims(fusion_output,-1)
+    gcn_model=tow_layers_GNN_model(get_adj_matrix())
     gcn_output=gcn_model.outputs[0]
-    mul_output=tf.reshape(gcn_output@tf.expand_dims(fusion_output,-1),[-1,gcn_output.shape[-2]])
+    mul_output=tf.keras.layers.Dot(axes=[2,1])([gcn_output,fusion_output])
+    mul_output=tf.keras.layers.Reshape((wordvec_m.shape[0],))(mul_output)
     person_feature=attention_fusion_model.get_layer('person_features').output
     cat_feature=tf.keras.layers.Concatenate()([mul_output,person_feature])
     D1_output=tf.keras.layers.Dense(wordvec_m.shape[0],activation='tanh')(cat_feature)

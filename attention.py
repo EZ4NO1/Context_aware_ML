@@ -54,8 +54,8 @@ def attention_fusion(alpha=0.5,n_rows=7,n_cols=7,v_size=2048):
   full_features=transpose_layer(full_features)
   V_e=MatMul(n_rows*n_cols)(full_features)
   Q_e=MatMul(n_rows*n_cols)(full_features)
-  M_e=layers.Dot(axes=(1,1))([V_e,Q_e])
-  alpha_e=layers.Softmax(axis=1)(M_e)
+  M_e=layers.Dot(axes=(1,1))([V_e,Q_e]) 
+  alpha_e=layers.Softmax(axis=-1)(M_e)
   f_e=layers.Dot(axes=(2,1))([full_features,alpha_e])
   self_attention_output=layers.GlobalAveragePooling1D(data_format='channels_first')(f_e)
   self_attention_model=tf.keras.Model(inputs=full_features_input,outputs=self_attention_output)
@@ -75,8 +75,8 @@ def attention_fusion(alpha=0.5,n_rows=7,n_cols=7,v_size=2048):
   I_d_product=MatMul(n_rows*n_cols)(I_d)
   product_sum=layers.Add()([person_product,I_d_product])
   M_c=tf.keras.activations.tanh(product_sum)
-  W_cM_c=MatMul(1)(M_c)
-  alpha_c=layers.Softmax(axis=1)(W_cM_c)
+  W_cM_c=MatMul(1)(M_c)  
+  alpha_c=layers.Softmax(axis=-1)(W_cM_c)
   f_c=layers.Dot(axes=(2,1))([alpha_c,env_features])
   f_c=layers.Reshape((v_size,))(f_c)
   position_aware_attetion_model=tf.keras.Model(
@@ -87,8 +87,8 @@ def attention_fusion(alpha=0.5,n_rows=7,n_cols=7,v_size=2048):
   return attention_fusion_model
     
 if __name__=='__main__':
-  # model=attention_fusion()
-  # model.summary()
+  model=attention_fusion()
+  model.summary()
   # l=MatMul(4)
   # l.build([None,3,2])
   # l.set_weights([np.asarray([[1,0,0],[1,0,0],[1,0,0],[1,0,0]])])

@@ -5,8 +5,9 @@ import tensorflow as tf
 import pickle
 import tables
 FEATURE_PATH=R'../mid_output/all_feature_label.h5'
-MODEL_PATH=R'../model/model.h5'
-HISTORY_PATH=R'../model/history.pickle'
+tick='1000'
+MODEL_PATH=R'../model/model_'+tick+'.h5'
+HISTORY_PATH=R'../model/history_'+tick+'+.pickle'
 def train():
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:

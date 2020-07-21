@@ -145,8 +145,8 @@ class GCN_Layer(layers.Layer):
 def tow_layers_GNN_model(Adj,node_feature_dim=2048):
     wordvec_s=get_wordvec_m().shape
     input_v=layers.Input(shape=wordvec_s, name="word_vector",dtype='float32')
-    M1=GCN_Layer(wordvec_s[-1],Adj)(input_v)
-    M2=GCN_Layer(node_feature_dim,Adj,'sigmoid')(M1)
+    M1=GCN_Layer(wordvec_s[-1],Adj,'tanh')(input_v)
+    M2=GCN_Layer(node_feature_dim,Adj,'tanh')(M1)
     model=tf.keras.Model(inputs=input_v,outputs=M2)
     return model
 if __name__=='__main__':
