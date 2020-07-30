@@ -34,12 +34,17 @@ def sym_uniform(martix):
     D_sqrt_inv=np.zeros(martix.shape)
     np.fill_diagonal(D_sqrt_inv,D_list)
     return D_sqrt_inv@martix@D_sqrt_inv
-def word_vec_corelation_m(vecs):
+def word_vec_corelation_m(vecs,dis_type='cos'):
     out=np.zeros((vecs.shape[0],vecs.shape[0]))
-    for i in range(vecs.shape[0]):
-        for j in range(vecs.shape[0]):
-            out[i][j]=np.linalg.norm(vecs[i]-vecs[j],ord=2)
-    out=1-out/out.max()
+    if dis_type=='euler':
+        for i in range(vecs.shape[0]):
+            for j in range(vecs.shape[0]):
+                out[i][j]=np.linalg.norm(vecs[i]-vecs[j],ord=2)
+        out=1-out/out.max()
+    if dis_type=='cos':
+        for i in range(vecs.shape[0]):
+            for j in range(vecs.shape[0]):
+                out[i][j]=np.dot(vecs[i],vecs[j])/(np.linalg.norm(vecs[i])*np.linalg.norm(vecs[j]))
     return out
 def get_wordvec_m():
     emo_strs=ALL_EMOTION
@@ -65,7 +70,7 @@ def get_wordvec_m():
             word2vec_dict=pickle.load(f_emo)
     wordvec_m=np.stack([word2vec_dict[emo.lower()]  for emo in ORIGIN_EMOTION])
     return wordvec_m
-def get_adj_matrix(ratio_wvec=0.5,diag_ratio=0.5):
+def get_adj_matrix(ratio_wvec=0.5):
     wordvec_m=get_wordvec_m()
     A_word=word_vec_corelation_m(wordvec_m)
 
@@ -83,9 +88,9 @@ def get_adj_matrix(ratio_wvec=0.5,diag_ratio=0.5):
     else:
         prob_m=np.load(COND_PROB_FILE)
     A_prob=prob_m
+    # print(A_prob)
+    # print(A_word)
     A=ratio_wvec*A_word+(1-ratio_wvec)*A_prob
-    for i in range(A.shape[0]):
-        A[i][i]=A[i][i]*diag_ratio
     A_hat=sym_uniform(A)
     return A_hat.astype(np.float32)
 def draw_corelation_heat_map(matrix,ticks):
@@ -128,9 +133,9 @@ class GCN_Layer(layers.Layer):
                                   dtype='float32')
         super().build(input_shape)
     def call(self, inputs):
-        Adj_T=self.Adj   #A_T*H
+        Adj_T=tf.transpose(self.Adj)  
         input_T=tf.transpose(inputs,perm=[0,2,1])
-        M_T=tf.reshape(tf.reshape(input_T, [-1, input_T.shape[-1]]) @Adj_T, [-1, input_T.shape[-2], Adj_T.shape[-1]])
+        M_T=tf.reshape(tf.reshape(input_T, [-1, input_T.shape[-1]]) @Adj_T, [-1, input_T.shape[-2], Adj_T.shape[-1]]) # (AH)^T
         M=tf.transpose(M_T,perm=[0,2,1])
         OUT=tf.reshape(tf.reshape(M,[-1,M.shape[-1]])@self.kernel,[-1,M.shape[-2],self.kernel.shape[-1]])
         return  layers.Activation(self.activation)(OUT)
@@ -145,14 +150,13 @@ class GCN_Layer(layers.Layer):
 def tow_layers_GNN_model(Adj,node_feature_dim=2048):
     wordvec_s=get_wordvec_m().shape
     input_v=layers.Input(shape=wordvec_s, name="word_vector",dtype='float32')
-    M1=GCN_Layer(wordvec_s[-1],Adj,'tanh')(input_v)
+    M1=GCN_Layer(1000,Adj)(input_v)
     M2=GCN_Layer(node_feature_dim,Adj,'tanh')(M1)
     model=tf.keras.Model(inputs=input_v,outputs=M2)
     return model
 if __name__=='__main__':
     A_hat=get_adj_matrix()
     #print(A_hat)
-    # draw_corelation_heat_map(A_hat[:10,:10],ORIGIN_EMOTION[:10])
     draw_corelation_heat_map(A_hat,ORIGIN_EMOTION)
-    model=tow_layers_GNN_model(A_hat)
-    model.summary()
+    #model=tow_layers_GNN_model(A_hat)
+    #model.summary()

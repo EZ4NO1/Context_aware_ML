@@ -37,5 +37,5 @@ class data_generator(tf.keras.utils.Sequence):
 
 if __name__=='__main__':
     with tables.open_file(OUT_PATH,mode='r') as f:
-        print(f.root._v_children)
+        print(f.root.train.body_bboxs[3])
     
