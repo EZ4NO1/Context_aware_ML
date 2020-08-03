@@ -84,25 +84,25 @@ def calculate_distance(boundingbox,n_rows=7,n_cols=7,h=224,w=224,dis_type='manha
           #tf.print(out.read(0))
   return out.stack()
 
-def self_attention_model(n_rows=7,n_cols=7,v_size=2048):
+def self_attention_model(n_rows=7,n_cols=7,v_size=2048,mid_feature_len=1000):
   transpose_layer=layers.Lambda(lambda x: tf.transpose(x,perm=[0,2,1]),name='transpose')
   full_features_input=tf.keras.Input(shape=(n_rows,n_cols,v_size), name="full_features",dtype='float32')
   full_features=layers.Reshape((n_rows*n_cols,v_size),name='flattern1')(full_features_input)
   full_features=transpose_layer(full_features)
-  V_e=MatMul(1000)(full_features)
-  Q_e=MatMul(1000)(full_features)
+  V_e=MatMul(mid_feature_len)(full_features)
+  Q_e=MatMul(mid_feature_len)(full_features)
   M_e=layers.Dot(axes=(1,1))([V_e,Q_e]) 
   alpha_e=layers.Softmax(axis=-2)(M_e)
   f_e=layers.Dot(axes=(2,1))([full_features,alpha_e])
   self_attention_output=layers.GlobalAveragePooling1D(data_format='channels_first')(f_e)
   model=tf.keras.Model(inputs=full_features_input,outputs=self_attention_output)
   return model
-def simple_self_attention_model(n_rows=7,n_cols=7,v_size=2048):
+def simple_self_attention_model(n_rows=7,n_cols=7,v_size=2048,mid_feature_len=1000):
   transpose_layer=layers.Lambda(lambda x: tf.transpose(x,perm=[0,2,1]),name='transpose')
   full_features_input=tf.keras.Input(shape=(n_rows,n_cols,v_size), name="full_features",dtype='float32')
   full_features=layers.Reshape((n_rows*n_cols,v_size),name='flattern1')(full_features_input)
   full_features=transpose_layer(full_features)
-  M_e=MatMul_bias(1000)(full_features)
+  M_e=MatMul_bias(mid_feature_len)(full_features)
   M_e=tf.keras.activations.tanh(M_e)
   alpha_e=MatMul(1)(M_e) 
   alpha_e=layers.Softmax(axis=-1)(alpha_e)
@@ -126,7 +126,7 @@ def attention_fusion(alpha=0.5,n_rows=7,n_cols=7,v_size=2048,simple=False):
   env_features_input=tf.keras.Input(shape=(n_rows,n_cols,v_size), name="env_features")
   env_features=layers.Reshape((n_rows*n_cols,v_size),name='flattern2')(env_features_input)
   person_features_input=tf.keras.Input(shape=(v_size), name="person_features")
-  person_product=layers.Dense(mid_feature_len)(person_features_input)
+  person_product=layers.Dense(mid_feature_len,use_bias=False)(person_features_input)
   person_product=layers.Reshape((1,mid_feature_len))(person_product)
   person_product=tf.repeat(person_product,[n_rows*n_cols],axis=-2,name='expand')
   person_product=transpose_layer(person_product)

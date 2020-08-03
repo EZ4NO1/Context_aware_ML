@@ -7,9 +7,9 @@ import tensorflow as tf
 import pickle
 import tables
 from tensorflow.keras.callbacks import LambdaCallback
-
+from evaluate import evaluate
 FEATURE_PATH=R'../mid_output/all_feature_label.h5'
-tick='1000'
+tick='Aug3'
 MODEL_PATH=R'../model/model_'+tick+'.h5'
 HISTORY_PATH=R'../model/history_'+tick+'+.pickle'
 def loss_fn_with_l2(input_tensor):
@@ -24,13 +24,13 @@ def train(with_reg=False):
         except RuntimeError as e:
             print(e)
     model=whole_model()
-    # initializer=tf.keras.initializers.GlorotNormal()
-    # for l in model.layers:
-    #     out=[]
-    #     for i in l.get_weights():
-    #         print(i)
-    #         out.append(initializer(i.shape))
-    #     l.set_weights(out)
+    initializer=tf.keras.initializers.GlorotNormal()
+    for l in model.layers:
+        out=[]
+        for i in l.get_weights():
+            print(i)
+            out.append(initializer(i.shape))
+        l.set_weights(out)
     word_vec_m=get_wordvec_m()
     f=tables.open_file(FEATURE_PATH,mode='r')
     if with_reg:
@@ -47,11 +47,15 @@ def train(with_reg=False):
         model.compile(optimizer='adam',loss=tf.keras.losses.BinaryCrossentropy(),metrics=tf.keras.metrics.BinaryCrossentropy())
     else:
         model.compile(optimizer='adam',loss=tf.keras.losses.BinaryCrossentropy())
+    print(model.optimizer.learning_rate)
+    K.set_value(model.optimizer.learning_rate, 0.002)
+    print(model.optimizer.learning_rate)
     #print_weights = LambdaCallback(on_epoch_end=lambda batch, logs: print(model.losses))
     #print(len(model.losses))
+    mpa_on_test=LambdaCallback(on_epoch_end=lambda batch, logs:print('train Map :',evaluate(model)))
     history=model.fit(
         x=data_generator(f.root.train._v_children,word_vec_m,INPUT_NAMES,LABEL_NAME,32),
-        epochs=50,
+        epochs=20,
         verbose=2,
         validation_data=data_generator(f.root.validation._v_children,word_vec_m,INPUT_NAMES,LABEL_NAME,32),
         #callbacks = [print_weights]
@@ -77,7 +81,8 @@ if __name__=='__main__':
     # tep=zip(his['loss'],his['val_loss'])
     # for a,b in tep:
     #     print(a,b)
-    # with open(HISTORY_PATH,'rb') as f_h:
-    #     tep=pickle.load(f_h)
-    # for i,j in zip(tep['loss'],tep['val_loss']):
-    #     print(i,j)
+    with open(HISTORY_PATH,'rb') as f_h:
+        tep=pickle.load(f_h)
+    for i,j in zip(tep['loss'],tep['val_loss']):
+        print(i,j)
+    # print(len(tep['loss']))

@@ -27,12 +27,12 @@ def preprocess():
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
         try:
-            tf.config.experimental.set_visible_devices(gpus[2], 'GPU')
+            tf.config.experimental.set_visible_devices(gpus[3], 'GPU')
         except RuntimeError as e:
             print(e)
     ResNet101=tf.keras.applications.ResNet101V2(include_top=True, weights=IMAGENET_PATH)
     layer_in=ResNet101.layers[0].input
-    layer_out=ResNet101.layers[-3].output
+    layer_out=ResNet101.layers[-5].output
     ResNet101=tf.keras.Model(inputs=layer_in,outputs=layer_out)
     # ResNet101.summary()
 
@@ -113,7 +113,14 @@ def preprocess():
     print('skip_instance_num',skip_num)
     h5file.close()
 if __name__=='__main__':
-    preprocess()
+    #preprocess()
+    ResNet101=tf.keras.applications.ResNet101V2(include_top=True, weights=IMAGENET_PATH)
+    layer_in=ResNet101.layers[0].input
+    layer_out=ResNet101.layers[-5].output
+    ResNet101=tf.keras.Model(inputs=layer_in,outputs=layer_out)
+    ResNet101.summary()
+    # from train import train
+    # train()
 
 
     

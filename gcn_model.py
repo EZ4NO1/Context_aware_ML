@@ -90,6 +90,10 @@ def get_adj_matrix(ratio_wvec=0.5):
     A_prob=prob_m
     # print(A_prob)
     # print(A_word)
+    for i in range(A_prob.shape[0]):
+        for j in range(i+1,A_prob.shape[0]):
+            A_prob[i][j]=(A_prob[i][j]+A_prob[j][i])/2
+            A_prob[j][i]=A_prob[i][j]
     A=ratio_wvec*A_word+(1-ratio_wvec)*A_prob
     A_hat=sym_uniform(A)
     return A_hat.astype(np.float32)
@@ -156,7 +160,10 @@ def tow_layers_GNN_model(Adj,node_feature_dim=2048):
     return model
 if __name__=='__main__':
     A_hat=get_adj_matrix()
+    for i in range(26):
+        for j in range(26):
+            assert A_hat[i][j]==A_hat[j][i]
     #print(A_hat)
-    draw_corelation_heat_map(A_hat,ORIGIN_EMOTION)
+    #draw_corelation_heat_map(A_hat,ORIGIN_EMOTION)
     #model=tow_layers_GNN_model(A_hat)
     #model.summary()
